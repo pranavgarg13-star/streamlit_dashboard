@@ -1,5 +1,5 @@
 
-
+from plotly.subplots import make_subplots
 import os
 import pandas as pd
 import plotly.graph_objects as go
@@ -58,6 +58,12 @@ def _base_fig(title: str) -> go.Figure:
     )
     return fig
 
+def hex_to_rgba(hex_color, alpha=0.1):
+    hex_color = hex_color.lstrip('#')
+    r = int(hex_color[0:2], 16)
+    g = int(hex_color[2:4], 16)
+    b = int(hex_color[4:6], 16)
+    return f"rgba({r}, {g}, {b}, {alpha})"
 
 def make_price_chart(df: pd.DataFrame, asset: str, color: str = "#00C4FF") -> go.Figure:
     """
@@ -79,15 +85,42 @@ def make_price_chart(df: pd.DataFrame, asset: str, color: str = "#00C4FF") -> go
         )
         return fig
 
+    # Volume = price change between rows, used as a proxy since we don't have real volume
+    volume = df[asset].diff().abs()
+
+    fig = make_subplots(
+    rows=2, cols=1,
+    shared_xaxes=True,
+    row_heights=[0.75, 0.25],  # price takes 75%, volume 25%
+    vertical_spacing=0.03,
+)
+
+# Price line — top subplot
     fig.add_trace(go.Scatter(
-        x=df["timestamp"],
-        y=df[asset],
-        mode="lines",
-        name=asset,
-        line=dict(color=color, width=2),
-        fill="tozeroy",
-        fillcolor=f"rgba({int(color[1:3],16)},{int(color[3:5],16)},{int(color[5:7],16)},0.08)",
-    ))
+    x=df["timestamp"], y=df[asset],
+    mode="lines", name=asset,
+    line=dict(color=color, width=2),
+    fill="tozeroy",
+    fillcolor=hex_to_rgba(color, 0.08),
+), row=1, col=1)
+
+# Volume bars — bottom subplot
+    fig.add_trace(go.Bar(
+    x=df["timestamp"], y=volume,
+    name="Volatility", marker_color=hex_to_rgba(color, 0.5),
+    showlegend=False,
+), row=2, col=1)
+    
+    fig.update_layout(
+    title=dict(text=f"{asset} Price Over Time", font=dict(size=16, color="#E0E0E0")),
+    paper_bgcolor="#0E1117",
+    plot_bgcolor="#1A1D23",
+    font=dict(color="#C0C0C0"),
+    margin=dict(l=20, r=20, t=50, b=20),
+    hovermode="x unified",
+)
+    fig.update_xaxes(gridcolor="#2A2D35")
+    fig.update_yaxes(gridcolor="#2A2D35")
     return fig
 
 
